@@ -6,8 +6,7 @@ import os
 from datetime import datetime, timedelta
 from typing import Any, Generator, Iterable
 import unicodedata
-
-from overload import overload
+from multipledispatch import dispatch
 
 from styles import bggreen, bgwhite, black, inverse
 
@@ -164,7 +163,7 @@ class ProgressBar:
                     sep='', end='\r'
                 )
 
-    @overload
+    @dispatch()
     def update(self) -> None:
         """计数器自增"""
         self.last_progress += 1
@@ -173,7 +172,7 @@ class ProgressBar:
         else:
             self.update(self.last_progress)
 
-    @update.add
+    @dispatch(float)
     def update(self, progress: float) -> None:
         """更新完成度（0 至 1）"""
         if progress == 0 or progress < self.last_progress:
@@ -183,7 +182,7 @@ class ProgressBar:
         text = '%s%%' % (str(progress * 100)[:4])
         self._print(progress, text)
 
-    @update.add
+    @dispatch(int)
     def update(self, completed: int) -> None:
         """更新完成数量，总数量未知"""
         if completed == 0 or completed < self.last_progress:
@@ -193,7 +192,7 @@ class ProgressBar:
         text = str(completed)
         self._print(1 - 1e-10, text)
 
-    @update.add
+    @dispatch(int, int)
     def update(self, completed: int, total: int) -> None:
         """更新完成数量，已知总数量"""
         if completed == 0 or completed < self.last_progress:
@@ -218,14 +217,7 @@ class ProgressBar:
             return
         self._print(1, str(self.last_progress))
 
-
-    @overload
-    def __call__(self, total: int):
-        """指定总数，用于 with 语句"""
-        self.total = total
-        return self
-    
-    @__call__.add
+    @dispatch(object)
     def __call__(
         self,
         iterable: Iterable,
@@ -273,6 +265,12 @@ class ProgressBar:
                 if i % interval == 0:
                     self.update(i, size)
             self.update(size, size)
+
+    @dispatch(int)
+    def __call__(self, total: int):
+        """指定总数，用于 with 语句"""
+        self.total = total
+        return self
 
 
 pb = ProgressBar('')
